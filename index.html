@@ -98,14 +98,25 @@
           </select>
         </div>
 
-        <label for="target-danceability">Target danceability <span id="target-danceability-value">0.65</span> <button class="metric-info" data-tooltip="Danceability: how suitable a track is for dancing (higher = more danceable)">i</button></label>
-        <input id="target-danceability" type="range" min="0" max="1" step="0.01" value="0.65" />
 
-        <label for="target-energy">Target energy <span id="target-energy-value">0.60</span> <button class="metric-info" data-tooltip="Energy: perceived intensity and activity level of the track (higher = more intense)">i</button></label>
-        <input id="target-energy" type="range" min="0" max="1" step="0.01" value="0.60" />
-
-        <label for="target-valence">Target valence <span id="target-valence-value">0.55</span> <button class="metric-info" data-tooltip="Valence: musical positivity or happiness (higher = more positive)">i</button></label>
-        <input id="target-valence" type="range" min="0" max="1" step="0.01" value="0.55" />
+        <div class="slider-row">
+          <label for="target-danceability">Target danceability</label>
+          <input id="target-danceability" type="range" min="0" max="1" step="0.01" value="0.50" />
+          <span id="target-danceability-value">0.50</span>
+          <button class="metric-info" data-tooltip="Danceability: how suitable a track is for dancing (higher = more danceable)">i</button>
+        </div>
+        <div class="slider-row">
+          <label for="target-energy">Target energy</label>
+          <input id="target-energy" type="range" min="0" max="1" step="0.01" value="0.50" />
+          <span id="target-energy-value">0.50</span>
+          <button class="metric-info" data-tooltip="Energy: perceived intensity and activity level of the track (higher = more intense)">i</button>
+        </div>
+        <div class="slider-row">
+          <label for="target-valence">Target valence</label>
+          <input id="target-valence" type="range" min="0" max="1" step="0.01" value="0.50" />
+          <span id="target-valence-value">0.50</span>
+          <button class="metric-info" data-tooltip="Valence: musical positivity or happiness (higher = more positive)">i</button>
+        </div>
 
         <button id="recommend-btn" class="story-btn primary" type="button">Generate mission picks</button>
       </article>

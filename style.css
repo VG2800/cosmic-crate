@@ -1,3 +1,20 @@
+#slider-row, .slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.slider-row label {
+  min-width: 170px;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+}
+.slider-row span {
+  min-width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 :root {
   --bg-1: #060915;
   --bg-2: #0a1230;
