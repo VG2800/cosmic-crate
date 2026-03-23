@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cosmic Crate: Alien Music Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main class="app">
+    <header class="header">
+      <div>
+        <h1>Cosmic Crate</h1>
+        <p class="subtitle">An alien visitor is decoding Earth music vibes. Start with missions, inspect the map, then fine-tune a 3-point vibe profile for track recommendations.</p>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label for="genre-filter">Filter by Genre</label>
+          <select id="genre-filter" aria-label="Genre filter">
+            <option value="All">All</option>
+          </select>
+        </div>
+        <div class="control-group slider-group">
+          <label for="popularity-slider">Minimum Popularity <span id="popularity-value">0</span></label>
+          <input id="popularity-slider" type="range" min="0" max="100" step="1" value="0" aria-label="Minimum popularity filter" />
+          <div id="render-stats" class="render-stats" aria-live="polite"></div>
+        </div>
+        <div class="control-group toggle-group">
+          <label for="density-toggle">Nebula Density Layer</label>
+          <label class="switch" aria-label="Toggle density layer">
+            <input id="density-toggle" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </header>
+    <section class="story-controls" aria-label="Guided story controls">
+      <button id="story-prev" class="story-btn" type="button">Previous mission</button>
+      <button id="story-next" class="story-btn primary" type="button">Next mission</button>
+      <button id="story-play" class="story-btn" type="button">Autopilot missions</button>
+      <button id="story-reset" class="story-btn" type="button">Return to free scan</button>
+      <div id="story-step-label" class="story-step" aria-live="polite"></div>
+      <div id="story-timer" class="story-timer" aria-live="polite"></div>
+        <aside id="story-note" class="story-note" aria-live="polite"></aside>
+        <div id="story-guide" class="story-guide" aria-live="polite"></div>
+    </section>
+
+    <section class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="legend-title">Top visible genres</div>
+          <div id="legend" class="legend" aria-label="Genre legend"></div>
+        </div>
+        <div class="size-note" aria-label="Point size legend">
+          <span>Dot size = popularity</span>
+          <span class="size-dots" aria-hidden="true">
+            <i class="dot-sm"></i>
+            <i class="dot-md"></i>
+            <i class="dot-lg"></i>
+          </span>
+        </div>
+      </div>
+      <svg id="chart" role="img" aria-label="Scatterplot of danceability versus energy"></svg>
+      <div id="tooltip" class="tooltip" role="tooltip"></div>
+    </section>
+
+    <section class="insight-panel" aria-label="Quadrant insight panel">
+      <div class="insight-head">
+        <h2>Quadrant Insight Deck</h2>
+        <button id="clear-focus" class="story-btn" type="button" disabled>Clear quadrant focus</button>
+      </div>
+      <p class="insight-subtitle">Quadrant positions correspond to musical roles: Pulse Core (high dance, high energy), Groove Pocket (high dance, low energy), Tension Zone (low dance, high energy), Calm Orbit (low dance, low energy). Click any quadrant to focus recommendations while preserving map context.</p>
+      <div id="quadrant-grid" class="quadrant-grid" aria-live="polite"></div>
+      <div id="quadrant-tooltip" class="quadrant-tooltip" role="tooltip"></div>
+      <div id="insight-summary" class="insight-summary" aria-live="polite"></div>
+      <p class="insight-hints">Use mission controls above to progress, autoplay, or reset the narrative scan.</p>
+    </section>
+
+    <section class="console-grid" aria-label="Alien tuning console">
+      <article class="console-card">
+        <h2>Alien Tuning Console</h2>
+        <p>Set a target vibe profile, then generate tracks that best match that vibe in the current filtered data.</p>
+        <div class="scope-wrap">
+          <h3>3-Point Vibe Scope</h3>
+          <p id="scope-meta" class="scope-meta">Target profile (cyan) compared with filtered average (orange).</p>
+          <svg id="vibe-scope" class="vibe-scope" role="img" aria-label="Tri-point radar chart for danceability, energy, and valence"></svg>
+        </div>
+
+        <div class="recommend-scope-wrap">
+          <label for="recommend-scope">Recommendation scan scope</label>
+          <select id="recommend-scope" aria-label="Recommendation scan scope">
+            <option value="filtered" selected>Current Filtered Data</option>
+            <option value="global">Whole Data</option>
+          </select>
+        </div>
+
+        <label for="target-danceability">Target danceability <span id="target-danceability-value">0.65</span> <button class="metric-info" data-tooltip="Danceability: how suitable a track is for dancing (higher = more danceable)">i</button></label>
+        <input id="target-danceability" type="range" min="0" max="1" step="0.01" value="0.65" />
+
+        <label for="target-energy">Target energy <span id="target-energy-value">0.60</span> <button class="metric-info" data-tooltip="Energy: perceived intensity and activity level of the track (higher = more intense)">i</button></label>
+        <input id="target-energy" type="range" min="0" max="1" step="0.01" value="0.60" />
+
+        <label for="target-valence">Target valence <span id="target-valence-value">0.55</span> <button class="metric-info" data-tooltip="Valence: musical positivity or happiness (higher = more positive)">i</button></label>
+        <input id="target-valence" type="range" min="0" max="1" step="0.01" value="0.55" />
+
+        <button id="recommend-btn" class="story-btn primary" type="button">Generate mission picks</button>
+      </article>
+
+      <article class="console-card">
+        <h2>Mission Picks</h2>
+        <p id="recommend-summary" class="recommend-summary">No mission picks generated yet.</p>
+        <ol id="recommend-list" class="recommend-list"></ol>
+
+        <div class="embed-wrap" aria-label="Top track player">
+          <h3>Now Listening (Top Pick)</h3>
+          <p id="embed-status" class="embed-status">Run a mission or generate picks to load Spotify embed.</p>
+          <div id="embed-track-selector" class="embed-track-selector" aria-label="Top 5 track selector"></div>
+          <iframe
+            id="spotify-embed"
+            class="spotify-embed"
+            src=""
+            title="Spotify track embed"
+            loading="lazy"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          ></iframe>
+        </div>
+      </article>
+    </section>
+
+    <footer class="credits">
+      <span>Data source: Spotify Tracks Dataset (Kaggle, Maharshi Pandya).</span>
+    </footer>
+  </main>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="script.js"></script>
+  <div id="info-tooltip" class="info-tooltip" role="tooltip" aria-hidden="true"></div>
+</body>
+</html>
