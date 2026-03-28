@@ -8,10 +8,8 @@ const renderStats = d3.select("#render-stats");
 const densityToggle = d3.select("#density-toggle");
 const storyPrevButton = d3.select("#story-prev");
 const storyNextButton = d3.select("#story-next");
-const storyPlayButton = d3.select("#story-play");
 const storyResetButton = d3.select("#story-reset");
 const storyStepLabel = d3.select("#story-step-label");
-const storyTimer = d3.select("#story-timer");
 const storyNote = d3.select("#story-note");
 const storyGuide = d3.select("#story-guide");
 const targetDanceability = d3.select("#target-danceability");
@@ -125,10 +123,6 @@ const MAX_SAMPLE_POINTS = 5500;
 const MAX_RENDER_POINTS = 800;
 let sliderRafId = null;
 let currentStoryStep = -1;
-let storyAutoplayTimer = null;
-let storyCountdownTimer = null;
-let storyCountdownRemaining = 0;
-const STORY_AUTOPLAY_MS = 10000;
 let currentFilteredPool = [];
 let latestRecommendations = [];
 let activeQuadrantKey = null;
@@ -588,7 +582,7 @@ function updateVibeScope() {
     .attr("d", (d) => d);
 
   scopeMeta.text(
-    `Target (cyan) vs filtered average (orange): dance ${poolProfile.danceability.toFixed(2)}, energy ${poolProfile.energy.toFixed(
+    `Target vs filtered average: dance ${poolProfile.danceability.toFixed(2)}, energy ${poolProfile.energy.toFixed(
       2
     )}, valence ${poolProfile.valence.toFixed(2)}.`
   );
@@ -1056,19 +1050,6 @@ function applyStoryStep(index) {
   svg.transition().duration(950).ease(d3.easeCubicInOut).call(zoomBehavior.transform, targetTransform);
 }
 
-function stopStoryAutoplay() {
-  if (storyAutoplayTimer !== null) {
-    clearInterval(storyAutoplayTimer);
-    storyAutoplayTimer = null;
-  }
-  if (storyCountdownTimer !== null) {
-    clearInterval(storyCountdownTimer);
-    storyCountdownTimer = null;
-  }
-  storyCountdownRemaining = 0;
-  storyTimer.text("");
-  storyPlayButton.text("Autopilot missions").classed("primary", false);
-}
 
 function clearQuadrantFocus(options = {}) {
   activeQuadrantKey = null;
@@ -1077,35 +1058,7 @@ function clearQuadrantFocus(options = {}) {
   }
 }
 
-function restartAutoplayCountdown() {
-  storyCountdownRemaining = Math.ceil(STORY_AUTOPLAY_MS / 1000);
-  storyTimer.text(`Next mission in ${storyCountdownRemaining}s`);
 
-  if (storyCountdownTimer !== null) {
-    clearInterval(storyCountdownTimer);
-  }
-
-  storyCountdownTimer = setInterval(() => {
-    storyCountdownRemaining = Math.max(0, storyCountdownRemaining - 1);
-    storyTimer.text(`Next mission in ${storyCountdownRemaining}s`);
-  }, 1000);
-}
-
-function startStoryAutoplay() {
-  stopStoryAutoplay();
-  if (currentStoryStep < 0) {
-    applyStoryStep(0);
-  }
-
-  restartAutoplayCountdown();
-
-  storyAutoplayTimer = setInterval(() => {
-    applyStoryStep(currentStoryStep + 1);
-    restartAutoplayCountdown();
-  }, STORY_AUTOPLAY_MS);
-
-  storyPlayButton.text("Pause autopilot missions").classed("primary", true);
-}
 
 function updateTargetLabels() {
   targetDanceabilityValue.text(Number(targetDanceability.property("value")).toFixed(2));
@@ -1280,7 +1233,6 @@ function generateRecommendations() {
 }
 
 function resetStoryAndView() {
-  stopStoryAutoplay();
   currentStoryStep = -1;
   activeQuadrantKey = null;
   genreFilter.property("value", "All");
@@ -1351,26 +1303,126 @@ function initialize(data) {
     applyFilters({ animate: true });
   });
 
+
+  // Autopilot feature
+  let autopilotActive = false;
+  let autopilotTimeout = null;
+  let autopilotCountdown = null;
+  const storyAutopilotButton = d3.select("#story-autopilot");
+  const storyTimer = d3.select("#story-timer");
+
+  function stopAutopilot() {
+    autopilotActive = false;
+    if (autopilotTimeout) {
+      clearTimeout(autopilotTimeout);
+      autopilotTimeout = null;
+    }
+    if (autopilotCountdown) {
+      clearInterval(autopilotCountdown);
+      autopilotCountdown = null;
+    }
+    storyTimer.text("");
+    storyAutopilotButton.text("Autopilot tour");
+    storyNextButton.property("disabled", false);
+    storyPrevButton.property("disabled", false);
+    storyResetButton.property("disabled", false);
+  }
+
+  function runAutopilot(stepIdx = 0) {
+    if (!autopilotActive) return;
+    // Apply the story step and wait for the zoom transition to finish before starting the timer
+    applyStoryStepWithTransition(stepIdx, () => {
+      if (!autopilotActive) return;
+      storyNextButton.property("disabled", true);
+      storyPrevButton.property("disabled", true);
+      storyResetButton.property("disabled", true);
+      storyAutopilotButton.text("Stop autopilot");
+
+      let seconds = 15;
+      storyTimer.text(`Next mission in ${seconds} seconds...`);
+      if (autopilotCountdown) {
+        clearInterval(autopilotCountdown);
+      }
+      autopilotCountdown = setInterval(() => {
+        seconds--;
+        if (seconds > 0) {
+          storyTimer.text(`Next mission in ${seconds} seconds...`);
+        } else {
+          storyTimer.text("");
+          clearInterval(autopilotCountdown);
+          autopilotCountdown = null;
+        }
+      }, 1000);
+
+      if (stepIdx < storySteps.length - 1) {
+        autopilotTimeout = setTimeout(() => runAutopilot(stepIdx + 1), 15000);
+      } else {
+        autopilotTimeout = setTimeout(() => {
+          stopAutopilot();
+        }, 15000);
+      }
+    });
+  }
+
+  // Helper to apply a story step and call a callback after the zoom transition ends
+  function applyStoryStepWithTransition(index, callback) {
+    if (!storySteps.length) {
+      if (callback) callback();
+      return;
+    }
+    currentStoryStep = ((index % storySteps.length) + storySteps.length) % storySteps.length;
+    const step = storySteps[currentStoryStep];
+    activeQuadrantKey = null;
+
+    genreFilter.property("value", step.genre);
+    currentPopularityMin = clampPopularity(step.popularityMin);
+    popularitySlider.property("value", currentPopularityMin);
+    popularityValue.text(currentPopularityMin);
+    applyTargetProfile(step.targetProfile);
+    renderStoryNote(step, currentStoryStep);
+    applyFilters({ animate: true });
+    generateRecommendations();
+
+    flashControl(genreFilter);
+    flashControl(popularitySlider);
+    flashControl(targetDanceability);
+    flashControl(targetEnergy);
+    flashControl(targetValence);
+    flashControl(recommendButton);
+
+    const autoZoomEnabled = typeof AUTO_ZOOM_ON_MISSION !== 'undefined' ? AUTO_ZOOM_ON_MISSION : true;
+    const targetTransform = autoZoomEnabled ? getTransformForDomains(step.xDomain, step.yDomain) : d3.zoomIdentity;
+    svg.transition().duration(950).ease(d3.easeCubicInOut)
+      .call(zoomBehavior.transform, targetTransform)
+      .on('end', function() {
+        if (callback) callback();
+      });
+  }
+
+  storyAutopilotButton.on("click", function () {
+    if (autopilotActive) {
+      stopAutopilot();
+    } else {
+      autopilotActive = true;
+      runAutopilot(0);
+    }
+  });
+
   storyNextButton.on("click", function () {
-    stopStoryAutoplay();
+    stopAutopilot();
     applyStoryStep(currentStoryStep + 1);
   });
 
+
   storyPrevButton.on("click", function () {
-    stopStoryAutoplay();
+    stopAutopilot();
     const previous = currentStoryStep < 0 ? storySteps.length - 1 : currentStoryStep - 1;
     applyStoryStep(previous);
   });
 
-  storyPlayButton.on("click", function () {
-    if (storyAutoplayTimer === null) {
-      startStoryAutoplay();
-      return;
-    }
-    stopStoryAutoplay();
-  });
 
   storyResetButton.on("click", function () {
+    stopAutopilot();
     resetStoryAndView();
   });
 

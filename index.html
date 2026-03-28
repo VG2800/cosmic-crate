@@ -41,12 +41,14 @@
     <section class="story-controls" aria-label="Guided story controls">
       <button id="story-prev" class="story-btn" type="button">Previous mission</button>
       <button id="story-next" class="story-btn primary" type="button">Next mission</button>
-      <button id="story-play" class="story-btn" type="button">Autopilot missions</button>
       <button id="story-reset" class="story-btn" type="button">Return to free scan</button>
+      <button id="story-autopilot" class="story-btn" type="button">Autopilot tour</button>
       <div id="story-step-label" class="story-step" aria-live="polite"></div>
       <div id="story-timer" class="story-timer" aria-live="polite"></div>
+      <div class="story-flex-row">
         <aside id="story-note" class="story-note" aria-live="polite"></aside>
         <div id="story-guide" class="story-guide" aria-live="polite"></div>
+      </div>
     </section>
 
     <section class="chart-card">
@@ -86,8 +88,12 @@
         <p>Set a target vibe profile, then generate tracks that best match that vibe in the current filtered data.</p>
         <div class="scope-wrap">
           <h3>3-Point Vibe Scope</h3>
-          <p id="scope-meta" class="scope-meta">Target profile (cyan) compared with filtered average (orange).</p>
+          <p id="scope-meta" class="scope-meta">Target average compared with filtered average.</p>
           <svg id="vibe-scope" class="vibe-scope" role="img" aria-label="Tri-point radar chart for danceability, energy, and valence"></svg>
+                  <div class="vibe-legend">
+                    <span class="vibe-legend-swatch" style="background:cyan;"></span> Target Average
+                    <span class="vibe-legend-swatch" style="background:orange; margin-left:16px;"></span> Filtered Average
+                  </div>
         </div>
 
         <div class="recommend-scope-wrap">
