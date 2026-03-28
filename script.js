@@ -106,10 +106,105 @@ const scopeAxisLayer = scopeRoot.append("g");
 const scopePolygonLayer = scopeRoot.append("g");
 const scopeLabelLayer = scopeRoot.append("g");
 
-const xScale = d3.scaleLinear().domain([0, 1]).range([0, innerWidth]);
-const yScale = d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]);
-const rScale = d3.scaleSqrt().range([2.2, 9.5]);
+
+// --- Visualization Modularization ---
+let xScale, yScale, rScale;
 const scopeRadius = 64;
+
+function createScales(data) {
+  xScale = d3.scaleLinear().domain([0, 1]).range([0, innerWidth]);
+  yScale = d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]);
+  rScale = d3.scaleSqrt().range([2.2, 9.5]);
+  if (data && data.length) {
+    rScale.domain(d3.extent(data, (d) => d.popularity));
+  }
+  return { xScale, yScale, rScale };
+}
+
+function createAxes(x = getZoomedX(), y = getZoomedY(), duration = 700) {
+  xAxisLayer
+    .transition()
+    .duration(duration)
+    .call(d3.axisBottom(x).ticks(10).tickFormat(d3.format(".1f")));
+
+  yAxisLayer
+    .transition()
+    .duration(duration)
+    .call(d3.axisLeft(y).ticks(10).tickFormat(d3.format(".1f")));
+
+  gridLayer
+    .transition()
+    .duration(duration)
+    .call(d3.axisLeft(y).tickSize(-innerWidth).tickFormat("").ticks(8));
+}
+
+function drawPoints(filteredData, options = {}) {
+  const shouldAnimate = options.animate !== false;
+  const duration = shouldAnimate
+    ? filteredData.length > 700
+      ? 220
+      : filteredData.length > 350
+        ? 340
+        : 520
+    : 0;
+  const t = d3.transition().duration(duration).ease(d3.easeCubicInOut);
+  const x = getZoomedX();
+  const y = getZoomedY();
+  const pointScaleFactor = filteredData.length > 800 ? 0.75 : filteredData.length > 500 ? 0.86 : 1;
+  const baseOpacity = filteredData.length > 800 ? 0.5 : filteredData.length > 450 ? 0.62 : 0.78;
+
+  const circles = pointsLayer.selectAll("circle.dot").data(filteredData, (d) => d.id);
+
+  circles
+    .exit()
+    .transition(t)
+    .attr("r", 0)
+    .style("opacity", 0)
+    .remove();
+
+  const circlesEnter = circles
+    .enter()
+    .append("circle")
+    .attr("class", "dot")
+    .attr("cx", (d) => x(d.danceability))
+    .attr("cy", (d) => y(d.energy))
+    .attr("r", 0)
+    .attr("fill", (d) => colorScale(d.genre))
+    .style("opacity", 0.2)
+    .on("mousemove", function (event, d) {
+      showTooltip(event, d);
+    })
+    .on("mouseenter", function (event, d) {
+      d3.select(this)
+        .raise()
+        .transition()
+        .duration(180)
+        .attr("r", rScale(d.popularity) * pointScaleFactor * 1.2)
+        .style("opacity", 1);
+      showTooltip(event, d);
+    })
+    .on("mouseleave", function (event, d) {
+      d3.select(this)
+        .transition()
+        .duration(180)
+        .attr("r", rScale(d.popularity) * pointScaleFactor)
+        .style("opacity", baseOpacity);
+      hideTooltip();
+    });
+
+  circlesEnter
+    .merge(circles)
+    .transition(t)
+    .attr("cx", (d) => x(d.danceability))
+    .attr("cy", (d) => y(d.energy))
+    .attr("r", (d) => rScale(d.popularity) * pointScaleFactor)
+    .attr("fill", (d) => colorScale(d.genre))
+    .style("opacity", baseOpacity);
+
+  pointsLayer
+    .selectAll("circle.dot")
+    .classed("focus-dim", (d) => activeQuadrantKey !== null && getQuadrantKey(d) !== activeQuadrantKey);
+}
 
 let colorScale;
 let allData = [];
@@ -364,21 +459,24 @@ async function loadData() {
   return data;
 }
 
-function drawAxes(x = getZoomedX(), y = getZoomedY(), duration = 700) {
-  xAxisLayer
-    .transition()
-    .duration(duration)
-    .call(d3.axisBottom(x).ticks(10).tickFormat(d3.format(".1f")));
 
-  yAxisLayer
-    .transition()
-    .duration(duration)
-    .call(d3.axisLeft(y).ticks(10).tickFormat(d3.format(".1f")));
-
-  gridLayer
-    .transition()
-    .duration(duration)
-    .call(d3.axisLeft(y).tickSize(-innerWidth).tickFormat("").ticks(8));
+// --- updateChart orchestrates the main chart update ---
+function updateChart(filteredData, options = {}) {
+  // Update density, axes, and points
+  const shouldAnimate = options.animate !== false;
+  const duration = shouldAnimate
+    ? filteredData.length > 700
+      ? 220
+      : filteredData.length > 350
+        ? 340
+        : 520
+    : 0;
+  const x = getZoomedX();
+  const y = getZoomedY();
+  currentRenderableData = filteredData;
+  updateDensity(filteredData, x, y, duration);
+  createAxes(x, y, duration);
+  drawPoints(filteredData, options);
 }
 
 function renderLegend(genres) {
@@ -1245,6 +1343,7 @@ function resetStoryAndView() {
   svg.transition().duration(850).ease(d3.easeCubicInOut).call(zoomBehavior.transform, d3.zoomIdentity);
 }
 
+
 function initialize(data) {
   const validRows = data.filter(
     (d) =>
@@ -1260,7 +1359,7 @@ function initialize(data) {
   sampledData = createRepresentativeSubset(allData, MAX_SAMPLE_POINTS);
   allDataByPopularity = sampledData.slice().sort((a, b) => d3.descending(a.popularity, b.popularity));
   colorScale = d3.scaleOrdinal(genres, d3.quantize(d3.interpolateRainbow, genres.length + 1));
-  rScale.domain(d3.extent(allData, (d) => d.popularity));
+  createScales(allData);
   const popularityExtent = d3.extent(allData, (d) => d.popularity);
 
   if (!allData.length || !Number.isFinite(popularityExtent[0]) || !Number.isFinite(popularityExtent[1])) {
@@ -1278,7 +1377,7 @@ function initialize(data) {
 
   updateGenreFilter(genres);
   drawScopeFrame();
-  drawAxes(getZoomedX(), getZoomedY(), 700);
+  createAxes(getZoomedX(), getZoomedY(), 700);
   renderLegend(genres.slice(0, 14));
   applyFilters();
   renderStoryNote(null, -1);
@@ -1302,7 +1401,6 @@ function initialize(data) {
   densityToggle.on("change", function () {
     applyFilters({ animate: true });
   });
-
 
   // Autopilot feature
   let autopilotActive = false;
